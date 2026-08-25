@@ -1,0 +1,8 @@
+description: BSP Display example
+
+dependencies:
+  m5stack_tab5:
+    version: "*"
+    public: true
+    #override_path: "../../bsp/m5stack_tab5"
+    #from esp-bsp-master/components/bsp_selector/idf_component.yml
