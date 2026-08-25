@@ -11,6 +11,12 @@
 #if LV_USE_FS_STDIO != '\0'
 
 #include <stdio.h>
+
+#if defined(__MINGW32__)
+#undef WIN32
+#define WIN32
+#endif
+
 #ifndef WIN32
     #include <dirent.h>
     #include <unistd.h>
