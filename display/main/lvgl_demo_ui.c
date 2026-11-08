@@ -108,7 +108,11 @@ void gesture_cb(lv_event_t *e)
 
 static void anim_timer_cb(lv_timer_t *timer)
 {
+#if LV_VERSION_CHECK(9, 0, 0)
+    my_timer_context_t *timer_ctx = (my_timer_context_t *) lv_timer_get_user_data(timer);
+#else
     my_timer_context_t *timer_ctx = (my_timer_context_t *) timer->user_data;//lv_timer_get_user_data(timer);
+#endif
     int count = timer_ctx->count_val;
     lv_obj_t *scr = timer_ctx->scr;
 

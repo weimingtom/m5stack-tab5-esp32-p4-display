@@ -25,7 +25,12 @@
  **********************/
 
 static int compare_fonts(lv_font_t * f1, lv_font_t * f2);
-void test_font_loader(void);
+void test_font_loader_with_cache(void);
+void test_font_loader_no_cache(void);
+void test_font_loader_from_buffer(void);
+void test_font_loader_dynamic(void);
+void test_font_loader_corrupt_kern(void);
+void test_font_loader_dynamic_from_buffer(void);
 
 /**********************
  *  STATIC VARIABLES
@@ -39,37 +44,204 @@ void test_font_loader(void);
  *   GLOBAL FUNCTIONS
  **********************/
 
-extern lv_font_t font_1;
-extern lv_font_t font_2;
-extern lv_font_t font_3;
+/* fonts converted to C structs using the LVGL Font Converter */
+extern lv_font_t test_font_1;
+extern lv_font_t test_font_2;
+extern lv_font_t test_font_3;
 
-void test_font_loader(void)
+/* font binaries converted to plain C arrays */
+extern uint8_t const test_font_1_buf[6876];
+extern uint8_t const test_font_2_buf[7252];
+extern uint8_t const test_font_3_buf[4892];
+
+static lv_font_t * font_1_bin = NULL;
+static lv_font_t * font_2_bin = NULL;
+static lv_font_t * font_3_bin = NULL;
+
+void setUp(void)
 {
-    /*Test with cahce ('A' has cache)*/
-    lv_font_t * font_1_bin = lv_font_load("A:src/test_fonts/font_1.fnt");
-    lv_font_t * font_2_bin = lv_font_load("A:src/test_fonts/font_2.fnt");
-    lv_font_t * font_3_bin = lv_font_load("A:src/test_fonts/font_3.fnt");
+    /* Function run before every test */
+}
 
-    compare_fonts(&font_1, font_1_bin);
-    compare_fonts(&font_2, font_2_bin);
-    compare_fonts(&font_3, font_3_bin);
+void tearDown(void)
+{
+    /* Function run after every test */
 
-    lv_font_free(font_1_bin);
-    lv_font_free(font_2_bin);
-    lv_font_free(font_3_bin);
+}
 
-    /*Test with cahce ('B' has NO cache)*/
-    font_1_bin = lv_font_load("B:src/test_fonts/font_1.fnt");
-    font_2_bin = lv_font_load("B:src/test_fonts/font_2.fnt");
-    font_3_bin = lv_font_load("B:src/test_fonts/font_3.fnt");
+static void common(void)
+{
+    compare_fonts(&test_font_1, font_1_bin);
+    compare_fonts(&test_font_2, font_2_bin);
+    compare_fonts(&test_font_3, font_3_bin);
 
-    compare_fonts(&font_1, font_1_bin);
-    compare_fonts(&font_2, font_2_bin);
-    compare_fonts(&font_3, font_3_bin);
+    /* create labels for testing */
+    lv_obj_t * scr = lv_screen_active();
+    lv_obj_t * label1 = lv_label_create(scr);
+    lv_obj_t * label2 = lv_label_create(scr);
+    lv_obj_t * label3 = lv_label_create(scr);
 
-    lv_font_free(font_1_bin);
-    lv_font_free(font_2_bin);
-    lv_font_free(font_3_bin);
+    lv_obj_set_flex_flow(scr, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(scr, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+    lv_label_set_text(label1, "The quick brown fox jumped over the lazy dog");
+    lv_obj_set_style_text_font(label1, font_1_bin, 0);
+    lv_label_set_text(label2, "The quick brown fox jumped over the lazy dog");
+    lv_obj_set_style_text_font(label2, font_2_bin, 0);
+    lv_label_set_text(label3, "The quick brown fox jumped over the lazy dog");
+    lv_obj_set_style_text_font(label3, font_3_bin, 0);
+
+    TEST_ASSERT_EQUAL_SCREENSHOT("font_loader_1.png");
+
+    lv_obj_clean(lv_screen_active());
+
+    lv_binfont_destroy(font_1_bin);
+    lv_binfont_destroy(font_2_bin);
+    lv_binfont_destroy(font_3_bin);
+}
+
+void test_font_loader_with_cache(void)
+{
+    /*Test with cache ('A' has cache)*/
+
+    font_1_bin = lv_binfont_create("A:src/test_assets/test_font_1.fnt");
+    TEST_ASSERT_NOT_NULL(font_1_bin);
+
+    font_2_bin = lv_binfont_create("A:src/test_assets/test_font_2.fnt");
+    TEST_ASSERT_NOT_NULL(font_2_bin);
+
+    font_3_bin = lv_binfont_create("A:src/test_assets/test_font_3.fnt");
+    TEST_ASSERT_NOT_NULL(font_3_bin);
+
+    common();
+}
+
+void test_font_loader_no_cache(void)
+{
+    /*Test without cache ('B' has NO cache)*/
+
+    font_1_bin = lv_binfont_create("B:src/test_assets/test_font_1.fnt");
+    TEST_ASSERT_NOT_NULL(font_1_bin);
+
+    font_2_bin = lv_binfont_create("B:src/test_assets/test_font_2.fnt");
+    TEST_ASSERT_NOT_NULL(font_2_bin);
+
+    font_3_bin = lv_binfont_create("B:src/test_assets/test_font_3.fnt");
+    TEST_ASSERT_NOT_NULL(font_3_bin);
+
+    common();
+}
+
+void test_font_loader_from_buffer(void)
+{
+    /*Test with memfs*/
+
+    font_1_bin = lv_binfont_create_from_buffer((void *)&test_font_1_buf, sizeof(test_font_1_buf));
+    TEST_ASSERT_NOT_NULL(font_1_bin);
+
+    font_2_bin = lv_binfont_create_from_buffer((void *)&test_font_2_buf, sizeof(test_font_2_buf));
+    TEST_ASSERT_NOT_NULL(font_2_bin);
+
+    font_3_bin = lv_binfont_create_from_buffer((void *)&test_font_3_buf, sizeof(test_font_3_buf));
+    TEST_ASSERT_NOT_NULL(font_3_bin);
+
+    common();
+}
+
+void test_font_loader_dynamic(void)
+{
+    /*Load the glyph bitmaps on demand instead of loading them all into RAM*/
+
+    lv_binfont_dsc_t dsc = {
+        .dynamic_glyph_load = true,
+    };
+
+    dsc.path = "A:src/test_assets/test_font_1.fnt";
+    font_1_bin = lv_binfont_create_ex(&dsc);
+    TEST_ASSERT_NOT_NULL(font_1_bin);
+
+    dsc.path = "A:src/test_assets/test_font_2.fnt";
+    font_2_bin = lv_binfont_create_ex(&dsc);
+    TEST_ASSERT_NOT_NULL(font_2_bin);
+
+    dsc.path = "A:src/test_assets/test_font_3.fnt";
+    font_3_bin = lv_binfont_create_ex(&dsc);
+    TEST_ASSERT_NOT_NULL(font_3_bin);
+
+    /*The rendered result has to be identical to the fully loaded fonts*/
+    common();
+}
+
+void test_font_loader_dynamic_from_buffer(void)
+{
+    /*Dynamic loading from a memory mapped file*/
+
+    lv_binfont_dsc_t dsc = {
+        .dynamic_glyph_load = true,
+    };
+
+    dsc.buffer = test_font_1_buf;
+    dsc.buffer_size = sizeof(test_font_1_buf);
+    font_1_bin = lv_binfont_create_ex(&dsc);
+    TEST_ASSERT_NOT_NULL(font_1_bin);
+
+    dsc.buffer = test_font_2_buf;
+    dsc.buffer_size = sizeof(test_font_2_buf);
+    font_2_bin = lv_binfont_create_ex(&dsc);
+    TEST_ASSERT_NOT_NULL(font_2_bin);
+
+    dsc.buffer = test_font_3_buf;
+    dsc.buffer_size = sizeof(test_font_3_buf);
+    font_3_bin = lv_binfont_create_ex(&dsc);
+    TEST_ASSERT_NOT_NULL(font_3_bin);
+
+    common();
+}
+
+void test_font_loader_corrupt_kern(void)
+{
+    const char * path = "A:src/test_assets/test_font_corrupt_kern.fnt";
+
+    TEST_ASSERT_NULL(lv_binfont_create(path));
+
+    lv_binfont_dsc_t dsc = {
+        .path = path,
+        .dynamic_glyph_load = true,
+    };
+    TEST_ASSERT_NULL(lv_binfont_create_ex(&dsc));
+}
+
+void test_font_loader_reload(void)
+{
+    /*Reload a font which is being used by a label*/
+    lv_obj_t * scr = lv_screen_active();
+    lv_obj_t * label = lv_label_create(scr);
+    lv_obj_center(label);
+    lv_label_set_text(label, "The quick brown fox jumped over the lazy dog");
+
+    lv_font_t style_font;
+    lv_font_t * font;
+    font = lv_binfont_create("A:src/test_assets/test_font_2.fnt");
+    TEST_ASSERT_NOT_NULL(font);
+    lv_memcpy(&style_font, font, sizeof(lv_font_t));
+
+    lv_obj_set_style_text_font(label, &style_font, 0);
+
+    TEST_ASSERT_EQUAL_SCREENSHOT("font_loader_2.png");
+
+    lv_binfont_destroy(font);
+
+    font = lv_binfont_create("A:src/test_assets/test_font_3.fnt");
+    TEST_ASSERT_NOT_NULL(font);
+    lv_memcpy(&style_font, font, sizeof(lv_font_t));
+
+    lv_obj_report_style_change(NULL);
+
+    TEST_ASSERT_EQUAL_SCREENSHOT("font_loader_3.png");
+
+    lv_obj_delete(label);
+
+    lv_binfont_destroy(font);
 }
 
 static int compare_fonts(lv_font_t * f1, lv_font_t * f2)
@@ -191,7 +363,9 @@ static int compare_fonts(lv_font_t * f1, lv_font_t * f2)
     lv_font_fmt_txt_glyph_dsc_t * glyph_dsc2 = (lv_font_fmt_txt_glyph_dsc_t *)dsc2->glyph_dsc;
 
     for(int i = 0; i < total_glyphs; ++i) {
-        if(i < total_glyphs - 1) {
+        /*A dynamically loaded font has no `glyph_bitmap` array, the screenshot comparison of the
+         *caller covers its glyphs instead*/
+        if(i < total_glyphs - 1 && !dsc2->are_glyphs_dynamic_loaded) {
             int size1 = glyph_dsc1[i + 1].bitmap_index - glyph_dsc1[i].bitmap_index;
 
             if(size1 > 0) {
@@ -217,4 +391,3 @@ static int compare_fonts(lv_font_t * f1, lv_font_t * f2)
  **********************/
 
 #endif // LV_BUILD_TEST
-
